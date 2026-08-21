@@ -54,7 +54,28 @@ _LONG_CACHE_SUFFIXES = (".css", ".js", ".png", ".jpg", ".jpeg", ".webp", ".svg",
 # ``/generated`` holds per-app recipe.json files (which carry the secret
 # edit_token); they must only be reached via the curated /a/{id}/... routes.
 _BLOCKED_STATIC_PREFIXES = ("/certs", "/server", "/.git", "/deploy", "/generated")
-_BLOCKED_STATIC_SUFFIXES = (".keystore", ".jks", ".pem", ".key", ".p12", ".pfx")
+# ``.env`` covers the deployed webtoapp.env (R2 credentials); ``.json`` is
+# deliberately NOT listed — /a/{id}/manifest.json is a legitimate route, and
+# sensitive .json files all live under blocked prefixes anyway.
+_BLOCKED_STATIC_SUFFIXES = (".keystore", ".jks", ".pem", ".key", ".p12", ".pfx", ".env", ".bak", ".sqlite3", ".log")
+
+
+def _normalize_request_path(raw_path: str) -> str:
+    """Collapse duplicate slashes, strip trailing ones, lower-case.
+
+    StaticFiles resolves '//server/x' on disk just like '/server/x', so the
+    blocklist must judge the same normalized form — matching the raw string
+    let doubled slashes evade every prefix rule (issue #18).
+    """
+    return re.sub(r"/{2,}", "/", str(raw_path or "").rstrip("/")).lower()
+
+
+def _is_sensitive_path(raw_path: str) -> bool:
+    normalized = _normalize_request_path(raw_path)
+    return (
+        any(normalized == p or normalized.startswith(p + "/") for p in _BLOCKED_STATIC_PREFIXES)
+        or normalized.endswith(_BLOCKED_STATIC_SUFFIXES)
+    )
 
 
 @app.middleware("http")
@@ -69,13 +90,7 @@ async def block_sensitive_paths(request: Request, call_next):
     middleware runs outside Starlette's ExceptionMiddleware, so a raised
     HTTPException here would surface as a 500 instead of a 404.
     """
-    raw_path = request.url.path
-    normalized = raw_path.rstrip("/").lower()
-    blocked = (
-        any(normalized == p or normalized.startswith(p + "/") for p in _BLOCKED_STATIC_PREFIXES)
-        or normalized.endswith(_BLOCKED_STATIC_SUFFIXES)
-    )
-    if blocked:
+    if _is_sensitive_path(request.url.path):
         return PlainTextResponse("Not found", status_code=404)
     return await call_next(request)
 
