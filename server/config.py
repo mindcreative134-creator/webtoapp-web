@@ -231,6 +231,18 @@ def site_public_base_url() -> str:
     return os.environ.get("SITE_PUBLIC_BASE_URL", "").strip().rstrip("/")
 
 
+def site_origin_key() -> str:
+    """Shared secret that lets the site gateway skip the sandbox redirect.
+
+    The reverse proxy in front of ``SITE_PUBLIC_BASE_URL`` (e.g. a Cloudflare
+    Worker) presents this in ``X-Site-Origin-Key``; the redirect in
+    ``serve_app_site`` is skipped only for matching requests, so content is
+    still served to the gateway while every direct main-origin request is
+    pushed to the sandbox origin.
+    """
+    return os.environ.get("SITE_ORIGIN_KEY", "").strip()
+
+
 def html_export_max_bytes() -> int:
     """Maximum total site size embedded in an exported history snapshot.
     Larger sites are skipped from the export and flagged instead. Default 2 MB."""
