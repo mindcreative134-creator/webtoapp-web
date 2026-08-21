@@ -461,6 +461,16 @@ def _history_payload(request: Request) -> dict:
     return {"items": items}
 
 
+def _html_site_public_base(base_url: str) -> str:
+    """Origin that uploaded-site content should live on.
+
+    SITE_PUBLIC_BASE_URL wins over the request-derived origin when configured,
+    so uploaded pages execute on an isolated host instead of the API origin
+    (issue #20). Empty config keeps the legacy main-origin behaviour.
+    """
+    return config.site_public_base_url() or str(base_url or "").rstrip("/")
+
+
 def _import_recipe_from_payload(item: dict, base_url: str = "") -> dict:
     snapshot = deepcopy(item.get("snapshot") or {})
     recipe = deepcopy(item.get("recipe") or snapshot.get("recipe") or {})
@@ -469,7 +479,7 @@ def _import_recipe_from_payload(item: dict, base_url: str = "") -> dict:
     if source_type == "html":
         # The stored URL embeds the exporting server's base URL; re-derive it
         # from the importing server so artifacts point at the right host.
-        target_url = f"{str(base_url or '').rstrip('/')}/a/{app_id}/site/{html_site.INDEX_NAME}"
+        target_url = f"{_html_site_public_base(base_url)}/a/{app_id}/site/{html_site.INDEX_NAME}"
     else:
         target_url = str(recipe.get("url") or snapshot.get("target_url") or "").strip()
     if not app_id or not target_url:
@@ -504,7 +514,7 @@ def _build_distill_response(payload: dict, progress_cb=None) -> dict:
     if source_type == "html":
         # The "site" is hosted by this server; the recipe URL points at the
         # staged content so every platform artifact reuses the URL pipeline.
-        base_url = str(payload.get("base_url") or "").rstrip("/")
+        base_url = _html_site_public_base(payload.get("base_url"))
         site_index = payload.get("site_index") or html_site.INDEX_NAME
         target_url = f"{base_url}/a/{app_id}/site/{site_index}"
     else:
@@ -1387,13 +1397,28 @@ async def serve_manifest(app_id: str):
 
 @app.get("/a/{app_id}/site/{file_path:path}")
 @app.get("/a/{app_id}/site")
-async def serve_app_site(app_id: str, file_path: str = ""):
+async def serve_app_site(app_id: str, request: Request, file_path: str = ""):
     """Serve the hosted content of an HTML app.
 
     Path traversal is contained by resolve_site_file (resolved paths must stay
     inside ``generated/<app_id>/site``); directory requests fall back to
     index.html. Each hit records a visit so the 30-day retention sweep keeps
-    actively-used apps alive."""
+    actively-used apps alive.
+
+    When SITE_PUBLIC_BASE_URL is configured, content is served from that
+    isolated origin only: requests arriving on any other host (the API
+    origin) are permanently redirected there. Uploaded pages must never
+    execute same-origin with the API — hostile JS could otherwise invoke
+    /api/* with the visitor's cookies attached (issue #20)."""
+    site_base = config.site_public_base_url()
+    if site_base:
+        req_host = (request.headers.get("host") or "").lower()
+        if req_host and req_host != urlparse(site_base).netloc.lower():
+            target = f"{site_base}/a/{app_id}/site" + (f"/{file_path}" if file_path else "")
+            query = str(request.url.query)
+            if query:
+                target = f"{target}?{query}"
+            return RedirectResponse(target, status_code=301)
     site_dir = APPS_DIR / app_id / "site"
     if not site_dir.is_dir():
         raise HTTPException(404, "Site not found")
