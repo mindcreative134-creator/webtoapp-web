@@ -72,3 +72,62 @@ class DistillerWriteAppFilesTests(unittest.TestCase):
             self.assertIn("done", stages)
             android_mock.assert_called_once()
             ios_mock.assert_called_once()
+
+
+class DistillerMacosLauncherTests(unittest.TestCase):
+    def _build(self, name="My App", url="https://example.com"):
+        import shlex
+        import tempfile
+        import zipfile
+        from pathlib import Path
+
+        distiller = Distiller()
+        recipe = {"id": "abcd1234", "name": name}
+        with tempfile.TemporaryDirectory() as tmp:
+            distiller._build_macos(Path(tmp), recipe, None, url)
+            entries = {}
+            modes = {}
+            with zipfile.ZipFile(Path(tmp) / "macos.zip") as z:
+                for info in z.infolist():
+                    entries[info.filename] = z.read(info.filename).decode()
+                    modes[info.filename] = (info.external_attr >> 16) & 0o7777
+        return entries, modes
+
+    def test_launcher_tries_webview_then_browser_fallbacks(self):
+        import shlex
+
+        entries, modes = self._build(url="https://example.com/x")
+        launcher = entries["My App.app/Contents/MacOS/launcher"]
+        self.assertTrue(launcher.startswith("#!/bin/bash"))
+        # Preferred path: system WKWebView window via osascript.
+        self.assertIn("/usr/bin/osascript -l JavaScript", launcher)
+        self.assertIn(f"export WTA_URL={shlex.quote('https://example.com/x')}", launcher)
+        # Fallbacks: Chromium app mode, then the default browser.
+        self.assertIn("open -na", launcher)
+        self.assertLess(launcher.index("osascript"), launcher.index("open -na"))
+        self.assertIn('open "$WTA_URL"', launcher)
+        self.assertGreater(launcher.index('open "$WTA_URL"'), launcher.index("open -na"))
+        # The WebView runtime ships inside the bundle and drives a real window.
+        app_js = entries["My App.app/Contents/Resources/app.js"]
+        self.assertIn("WKWebView", app_js)
+        self.assertIn("windowWillClose:", app_js)
+        self.assertIn("WTA_URL", app_js)
+        # Launcher stays executable through the zip round-trip.
+        self.assertEqual(modes["My App.app/Contents/MacOS/launcher"], 0o755)
+
+    def test_launcher_shell_quotes_names_and_urls(self):
+        import shlex
+
+        tricky_name = "Bob's \"App\""
+        tricky_url = "https://example.com/?q=it's&a=$b"
+        entries, _ = self._build(name=tricky_name, url=tricky_url)
+        launcher = entries[f"{tricky_name}.app/Contents/MacOS/launcher"]
+        self.assertIn(f"export WTA_URL={shlex.quote(tricky_url)}", launcher)
+        self.assertIn(f"export WTA_NAME={shlex.quote(tricky_name)}", launcher)
+
+    def test_webview_runtime_rejects_http_targets(self):
+        entries, _ = self._build(url="http://example.com")
+        app_js = entries["My App.app/Contents/Resources/app.js"]
+        # ATS blocks plain http inside WKWebView; app.js must bail out (non-zero
+        # exit) so the shell launcher falls through to browser app mode.
+        self.assertIn("requires an https target", app_js)

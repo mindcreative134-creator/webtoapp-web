@@ -42,7 +42,7 @@ Open source · Free · No sign-up. Try it live at **[shiaho.sbs](https://shiaho.
 - **Multi-platform packaging**: builds installers for five platforms at once
   - **Android** — a real, installable WebView APK (v1+v2+v3 signed). Each app uses its **own dedicated signing certificate**.
   - **iOS** — a `.mobileconfig` Web Clip profile, with optional CMS signing using a public-CA certificate ("signature-free" install).
-  - **Windows / macOS / Linux** — lightweight launchers with a native icon.
+  - **Windows / macOS / Linux** — lightweight launchers with a native icon. On macOS the app opens as a standalone WKWebView window (no address bar, no third-party browser needed); Windows / Linux open the system browser in app mode.
 - **iOS dynamic URL swap**: the Web Clip points at `/a/<id>/launch`, so you can change the target URL on the server without reinstalling.
 - **History**: build history is saved per device fingerprint, with export / import to other devices.
 - **Auto cleanup**: apps with no visits for 30 days are automatically reclaimed.
@@ -51,7 +51,7 @@ Open source · Free · No sign-up. Try it live at **[shiaho.sbs](https://shiaho.
 
 ## App size
 
-Each package is just a thin entry point to your site — it bundles no site content, so the artifacts are measured in **kilobytes, not megabytes**. Under the hood it uses each platform's native lightweight shell: an Android WebView APK, an iOS Web Clip profile, and `.app` / `.bat` / `.desktop` launchers that open the system browser in app mode on desktop.
+Each package is just a thin entry point to your site — it bundles no site content, so the artifacts are measured in **kilobytes, not megabytes**. Under the hood it uses each platform's native lightweight shell: an Android WebView APK, an iOS Web Clip profile, a standalone WKWebView `.app` window on macOS, and `.bat` / `.desktop` launchers that open the system browser in app mode on Windows / Linux.
 
 Measured on a real build (figures are representative; they barely vary by site):
 
@@ -59,7 +59,7 @@ Measured on a real build (figures are representative; they barely vary by site):
 | --- | --- | --- | --- |
 | Android | `android.apk` | **~21 KB** | A real, installable WebView APK (v1+v2+v3 signed) |
 | iOS / iPadOS | `ios.mobileconfig` | **~4 KB** | A Web Clip configuration profile |
-| macOS | `macos.zip` | **~1.4 KB** | A `.app` bundle (launcher script + icon) |
+| macOS | `macos.zip` | **~1.4 KB** | A `.app` bundle (standalone WKWebView window launcher + icon) |
 | Windows | `windows.zip` | **~1.2 KB** | A `.bat` launcher + desktop-shortcut helper + icon |
 | Linux | `linux.tar.gz` | **~0.7 KB** | A `.desktop` entry + install script + icon |
 
