@@ -86,11 +86,29 @@ Open <http://127.0.0.1:8000>. For local development you don't need any environme
 
 ## 6. Run as a service (systemd)
 
+Run the service as a dedicated, unprivileged user — never as root. Any RCE in
+the app then stops at an account that can only touch `generated/`, `certs/`
+and the APK template/tools caches.
+
+```bash
+sudo useradd -r -s /sbin/nologin -d /var/lib/webtoapp -M webtoapp
+sudo mkdir -p /var/lib/webtoapp/.local/share /var/lib/webtoapp/.cache
+sudo chown -R webtoapp:webtoapp /var/lib/webtoapp
+# Writable paths the service needs (adjust to your deploy root):
+sudo chown -R webtoapp:webtoapp \
+  /path/to/WebToApp/generated \
+  /path/to/WebToApp/certs \
+  /path/to/WebToApp/server/engine/_android_template \
+  /path/to/WebToApp/server/engine/_android_tools
+```
+
 Keep secrets in a locked-down environment file instead of inline in the unit:
 
 ```bash
 # /path/to/WebToApp/webtoapp.env  (chmod 600)
 PUBLIC_BASE_URL=https://your-domain.com
+# Shared secret for GET /api/metrics (unset = loopback-only access)
+METRICS_TOKEN=change-me
 # add R2_* / IOS_* / CLOUDFLARE_* here as needed
 ```
 
@@ -101,25 +119,52 @@ Description=WebToApp
 After=network.target
 
 [Service]
-User=www-data
+User=webtoapp
+Group=webtoapp
 WorkingDirectory=/path/to/WebToApp
 EnvironmentFile=/path/to/WebToApp/webtoapp.env
+Environment=HOME=/var/lib/webtoapp
+Environment=XDG_DATA_HOME=/var/lib/webtoapp/.local/share
+Environment=XDG_CACHE_HOME=/var/lib/webtoapp/.cache
 ExecStart=/path/to/WebToApp/venv/bin/uvicorn server.main:app --host 127.0.0.1 --port 8000 --workers 1
 Restart=always
 RestartSec=5
+# ---- hardening ----
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/path/to/WebToApp
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+> **HOME must point somewhere writable** (`/var/lib/webtoapp` above), and the
+> project root itself should stay owned by root. apktool needs to create
+> `~/.local/share/apktool` even when only *decoding*; when it cannot, it
+> fails **silently** — decoded manifests come back with empty attribute
+> values and every APK build falls back to the PWA ZIP. `ProtectHome=yes` is
+> unaffected: it fences off `/home`, `/root` and `/run/user`, not
+> `/var/lib/webtoapp`.
+>
+> Keep `--workers 1`. The build queue and in-memory rate limiter assume a
+> single process.
 
 ```bash
 sudo chmod 600 /path/to/WebToApp/webtoapp.env
 sudo systemctl daemon-reload
 sudo systemctl enable --now webtoapp
 sudo systemctl status webtoapp
+# Smoke-test a real build afterwards; "android.apk" must be present:
+#   curl -s http://127.0.0.1:8000/healthz
 ```
-
-> Keep `--workers 1`. The build queue and in-memory rate limiter assume a single process.
 
 ## 7. Reverse proxy (Nginx)
 
