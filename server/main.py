@@ -1042,7 +1042,21 @@ async def readyz():
 
 
 @app.get("/api/metrics")
-async def metrics():
+async def metrics(request: Request):
+    """Ops metrics. Not public: gated by METRICS_TOKEN when configured,
+    otherwise restricted to loopback callers (ops curl on the host itself).
+    The response discloses filesystem paths, queue depths and keystore
+    stats — fine for the operator, nothing a stranger needs."""
+    token = config.metrics_token()
+    if token:
+        supplied = (
+            request.headers.get("x-metrics-token", "").strip()
+            or request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+        )
+        if not supplied or not secrets.compare_digest(supplied, token):
+            raise HTTPException(403, "Forbidden")
+    elif _client_ip(request) not in ("127.0.0.1", "::1"):
+        raise HTTPException(403, "Forbidden")
     apk_builder_ready = False
     try:
         from server.engine.apk_builder import ApkBuilder
