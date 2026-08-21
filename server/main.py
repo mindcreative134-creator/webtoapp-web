@@ -1407,13 +1407,21 @@ async def serve_app_site(app_id: str, request: Request, file_path: str = ""):
 
     When SITE_PUBLIC_BASE_URL is configured, content is served from that
     isolated origin only: requests arriving on any other host (the API
-    origin) are permanently redirected there. Uploaded pages must never
-    execute same-origin with the API — hostile JS could otherwise invoke
-    /api/* with the visitor's cookies attached (issue #20)."""
+    origin) are permanently redirected there — except calls from the site
+    gateway itself, which proves itself with X-Site-Origin-Key. Uploaded
+    pages must never execute same-origin with the API — hostile JS could
+    otherwise invoke /api/* with the visitor's cookies attached (issue #20)."""
     site_base = config.site_public_base_url()
     if site_base:
+        supplied_key = request.headers.get("x-site-origin-key", "")
+        expected_key = config.site_origin_key()
+        from_gateway = (
+            bool(expected_key)
+            and bool(supplied_key)
+            and secrets.compare_digest(supplied_key, expected_key)
+        )
         req_host = (request.headers.get("host") or "").lower()
-        if req_host and req_host != urlparse(site_base).netloc.lower():
+        if not from_gateway and req_host and req_host != urlparse(site_base).netloc.lower():
             target = f"{site_base}/a/{app_id}/site" + (f"/{file_path}" if file_path else "")
             query = str(request.url.query)
             if query:

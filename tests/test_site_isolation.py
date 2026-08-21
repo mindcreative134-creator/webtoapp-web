@@ -78,6 +78,34 @@ class ServeAppSiteIsolationTests(unittest.TestCase):
             )
         self.assertEqual(resp.status_code, 404)
 
+    def test_gateway_key_bypasses_redirect(self):
+        env = {"SITE_PUBLIC_BASE_URL": SANDBOX, "SITE_ORIGIN_KEY": "s3cret"}
+        with mock.patch.dict(os.environ, env):
+            resp = self.client.get(
+                "/a/nonexistent/site/index.html",
+                headers={"Host": ORIGIN, "X-Site-Origin-Key": "s3cret"},
+                follow_redirects=False,
+            )
+        self.assertEqual(resp.status_code, 404)  # reached serving logic, no redirect
+
+    def test_wrong_gateway_key_still_redirects(self):
+        env = {"SITE_PUBLIC_BASE_URL": SANDBOX, "SITE_ORIGIN_KEY": "s3cret"}
+        with mock.patch.dict(os.environ, env):
+            resp = self.client.get(
+                "/a/nonexistent/site/index.html",
+                headers={"Host": ORIGIN, "X-Site-Origin-Key": "nope"},
+                follow_redirects=False,
+            )
+            self.assertEqual(resp.status_code, 301)
+        # No key configured on the server side: any header must be ignored.
+        with mock.patch.dict(os.environ, {"SITE_PUBLIC_BASE_URL": SANDBOX, "SITE_ORIGIN_KEY": ""}):
+            resp = self.client.get(
+                "/a/nonexistent/site/index.html",
+                headers={"Host": ORIGIN, "X-Site-Origin-Key": "s3cret"},
+                follow_redirects=False,
+            )
+        self.assertEqual(resp.status_code, 301)
+
 
 if __name__ == "__main__":
     unittest.main()
