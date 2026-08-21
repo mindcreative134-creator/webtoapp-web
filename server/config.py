@@ -177,6 +177,17 @@ def trusted_proxy_cidrs() -> list[str]:
     return values or ["127.0.0.1/32", "::1/128"]
 
 
+def metrics_token() -> str:
+    """Shared secret for GET /api/metrics.
+
+    When set, callers must present it via ``Authorization: Bearer <token>``
+    or ``X-Metrics-Token``. When unset, the endpoint falls back to allowing
+    only loopback callers instead of being publicly readable (it discloses
+    filesystem paths, queue depths and keystore stats).
+    """
+    return os.environ.get("METRICS_TOKEN", "").strip()
+
+
 # ---------- HTML-to-App uploads ----------
 #
 # Uploaded HTML content (.html single file or .zip site bundle) is hosted by
