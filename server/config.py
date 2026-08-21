@@ -219,6 +219,18 @@ def html_site_max_file_count() -> int:
         return 500
 
 
+def site_public_base_url() -> str:
+    """Public origin that serves uploaded HTML-app content (/a/<id>/site/).
+
+    When set, uploaded pages execute on this isolated host instead of the API
+    origin: their JS then cannot invoke the API with the visitor's cookies
+    attached (cross-site -> SameSite=Lax cookies are not sent), closing the
+    same-origin hole in issue #20. The main origin 301-redirects /a/<id>/site/
+    requests here. Empty = serve from the main origin (legacy behaviour).
+    """
+    return os.environ.get("SITE_PUBLIC_BASE_URL", "").strip().rstrip("/")
+
+
 def html_export_max_bytes() -> int:
     """Maximum total site size embedded in an exported history snapshot.
     Larger sites are skipped from the export and flagged instead. Default 2 MB."""
