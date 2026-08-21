@@ -5,6 +5,7 @@ Each platform gets a real, installable, few-KB launcher with proper app icon.
 
 import json
 import re
+import shlex
 import uuid
 import secrets
 import zipfile
@@ -27,6 +28,64 @@ from server import html_site
 from server.htmlmeta import parse_html_metadata
 from server.logging_util import log_event
 from server.net import fetch_public_url_bytes
+
+
+# Standalone-window runtime for the macOS .app launcher: a tiny JXA script that
+# opens the target URL in a real WKWebView window using only system frameworks —
+# no bundled binaries, nothing to codesign. Kept as a static string so the
+# shipped file is byte-identical to what is tested locally. The launcher feeds
+# it WTA_URL / WTA_NAME / WTA_ICON through the environment.
+_MACOS_WEBVIEW_APP_JS = """\
+ObjC.import('Cocoa');
+ObjC.import('WebKit');
+
+(function () {
+  var env = $.NSProcessInfo.processInfo.environment;
+  function envStr(key) { var v = env.objectForKey(key); return v ? v.js : ''; }
+  var url = envStr('WTA_URL');
+  var name = envStr('WTA_NAME') || 'App';
+  var iconPath = envStr('WTA_ICON');
+  if (!/^https:\\/\\//i.test(url)) {
+    // App Transport Security blocks plain-http loads inside WKWebView; exit
+    // non-zero so the shell launcher falls back to browser app mode.
+    throw new Error('WTA: embedded WebView requires an https target');
+  }
+  var app = $.NSApplication.sharedApplication;
+  app.setActivationPolicy(0); // regular app: own dock icon + menu bar presence
+  app.activateIgnoringOtherApps(true);
+  if (iconPath) {
+    var img = $.NSImage.alloc.initWithContentsOfFile(iconPath);
+    if (img && !img.isNil()) { app.setApplicationIconImage(img); }
+  }
+  var W = 1280;
+  var H = 800;
+  var frame = $.NSMakeRect(0, 0, W, H);
+  var win = $.NSWindow.alloc.initWithContentRectStyleMaskBackingDefer(frame, 15, 2, false);
+  win.setTitle(name);
+  var screen = $.NSScreen.mainScreen.frame;
+  var x = screen.origin.x + (screen.size.width - W) / 2;
+  var y = screen.origin.y + (screen.size.height - H) / 2;
+  win.setFrameDisplay($.NSMakeRect(x, y, W, H), true);
+  var wv = $.WKWebView.alloc.initWithFrame(frame);
+  win.contentView = wv;
+  // Quit the whole app when the window closes. NSWindow does not retain its
+  // delegate, so the instance must stay alive in this scope while run() spins.
+  ObjC.registerSubclass({
+    name: 'WTALauncherDelegate',
+    methods: {
+      'windowWillClose:': {
+        types: ['void', ['id']],
+        implementation: function () { $.NSApp.terminate(null); }
+      }
+    }
+  });
+  var delegate = $.WTALauncherDelegate.alloc.init;
+  win.setDelegate(delegate);
+  wv.loadRequest($.NSURLRequest.requestWithURL($.NSURL.URLWithString(url)));
+  win.makeKeyAndOrderFront(null);
+  app.run();
+})();
+"""
 
 
 class Distiller:
@@ -1430,13 +1489,25 @@ WScript.Echo "桌面快捷方式已创建！"
     # ===== macOS — .app bundle + .icns =====
     def _build_macos(self, dl: Path, r: dict, icon_png, launch_url):
         n = r['name']
-        # Prefer a Chromium-family browser's "app mode" (--app=URL), which opens
-        # a chromeless standalone window (no tabs, no address bar) — the closest
-        # thing to a native app on macOS. We probe a list of common Chromium
-        # browsers by bundle path. Safari has no chromeless CLI mode, so on a
-        # Safari-only Mac we fall back to a plain open (with browser chrome).
+        # Launch chain, best experience first:
+        #   1. A real WKWebView window driven by the system osascript (JXA) — a
+        #      genuine standalone app window on every Mac with no third-party
+        #      browser required. The previous Chromium-only probe left Safari-only
+        #      Macs falling through to a plain `open`, i.e. a full-chrome browser
+        #      tab. app.js refuses plain-http targets (ATS blocks them inside
+        #      WKWebView) and exits non-zero so the shell falls through.
+        #   2. A Chromium-family browser's "app mode" (--app=URL) — chromeless
+        #      window on the user's own browser engine.
+        #   3. The default browser as a last resort.
         launcher = f"""#!/bin/bash
-URL="{launch_url}"
+DIR="$(cd "$(dirname "$0")" && pwd)"
+RES="$DIR/../Resources"
+export WTA_URL={shlex.quote(launch_url)}
+export WTA_NAME={shlex.quote(n)}
+export WTA_ICON="$RES/AppIcon.icns"
+if /usr/bin/osascript -l JavaScript "$RES/app.js"; then
+    exit 0
+fi
 CHROMIUM_APPS=(
     "Google Chrome"
     "Google Chrome Canary"
@@ -1449,12 +1520,11 @@ CHROMIUM_APPS=(
 )
 for app in "${{CHROMIUM_APPS[@]}}"; do
     if [ -d "/Applications/$app.app" ] || [ -d "$HOME/Applications/$app.app" ]; then
-        open -na "$app" --args --app="$URL"
+        open -na "$app" --args --app="$WTA_URL"
         exit 0
     fi
 done
-# No Chromium-family browser found: open in the default browser.
-open "$URL"
+open "$WTA_URL"
 """
         plist = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1471,6 +1541,7 @@ open "$URL"
             info = zipfile.ZipInfo(f"{n}.app/Contents/MacOS/launcher")
             info.external_attr = 0o755 << 16
             z.writestr(info, launcher)
+            z.writestr(f"{n}.app/Contents/Resources/app.js", _MACOS_WEBVIEW_APP_JS)
             z.writestr(f"{n}.app/Contents/Info.plist", plist)
             if icon_png:
                 z.writestr(f"{n}.app/Contents/Resources/AppIcon.icns", self._png_to_icns(icon_png))
