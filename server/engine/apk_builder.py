@@ -35,6 +35,7 @@ package w;
 import android.Manifest;
 import android.app.Activity;
 import android.app.DownloadManager;
+import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -49,6 +50,7 @@ import android.webkit.DownloadListener;
 import android.webkit.GeolocationPermissions;
 import android.webkit.PermissionRequest;
 import android.webkit.URLUtil;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -69,6 +71,7 @@ public class M extends Activity {
     private static final int REQ_WRITE_STORAGE = 2001;
     private static final int REQ_LOCATION = 2002;
     private static final int REQ_MEDIA = 2003;
+    private static final int REQ_FILE_CHOOSER = 2004;
     private static final String DESKTOP_USER_AGENT =
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
         + "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -117,6 +120,7 @@ public class M extends Activity {
     private GeolocationPermissions.Callback pendingGeolocationCallback;
     private String pendingGeolocationOrigin;
     private PermissionRequest pendingPermissionRequest;
+    private ValueCallback<Uri[]> pendingFileChoiceCallback;
 
     /**
      * Returns true if the given host matches any blocked ad/tracker domain.
@@ -438,6 +442,34 @@ public class M extends Activity {
             return !isUserGesture;
         }
         // ─────────────────────────────────────────────────────────────────
+
+        // ── File chooser (<input type="file">) ────────────────────────────
+        // WebView ships no default file picker: without this override every
+        // tap on an <input type="file"> silently does nothing. We hand the
+        // request to the system picker via startActivityForResult and deliver
+        // the result back in onActivityResult.
+        @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback,
+                                                   FileChooserParams params) {
+            // Settle any chooser still pending (e.g. the user backed out of a
+            // previous one without cancelling cleanly). Leaving it hanging
+            // makes WebView drop all future file-input taps.
+            if (pendingFileChoiceCallback != null) {
+                pendingFileChoiceCallback.onReceiveValue(null);
+            }
+            pendingFileChoiceCallback = callback;
+            try {
+                Intent intent = params.createIntent();
+                if (params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE) {
+                    intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                }
+                startActivityForResult(intent, REQ_FILE_CHOOSER);
+                return true;
+            } catch (Throwable ignored) {
+                pendingFileChoiceCallback = null;
+                return false;
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────
     }
 
     private final class AppDownloadListener implements DownloadListener {
@@ -552,6 +584,37 @@ public class M extends Activity {
         return true;
     }
 
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQ_FILE_CHOOSER) return;
+        ValueCallback<Uri[]> callback = pendingFileChoiceCallback;
+        pendingFileChoiceCallback = null;
+        if (callback == null) return;  // activity recreated meanwhile: WebView's callback is gone
+        // Deliver even when the user cancelled (null result) — leaving the
+        // callback hanging makes WebView ignore all later file-input taps.
+        callback.onReceiveValue(parseFileChooserResult(resultCode, data));
+    }
+
+    /**
+     * Converts the system picker result into the Uri[] the WebView expects.
+     * FileChooserParams.parseResult() only handles single selection, so
+     * multi-select results are read from ClipData here.
+     */
+    private Uri[] parseFileChooserResult(int resultCode, Intent data) {
+        if (resultCode != RESULT_OK || data == null) return null;
+        ClipData clip = data.getClipData();
+        if (clip != null) {
+            ArrayList<Uri> uris = new ArrayList<Uri>();
+            for (int i = 0; i < clip.getItemCount(); i++) {
+                Uri uri = clip.getItemAt(i).getUri();
+                if (uri != null) uris.add(uri);
+            }
+            return uris.isEmpty() ? null : uris.toArray(new Uri[0]);
+        }
+        Uri single = data.getData();
+        return single != null ? new Uri[]{single} : null;
+    }
+
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQ_WRITE_STORAGE) {
@@ -597,6 +660,7 @@ public class M extends Activity {
         pendingGeolocationCallback = null;
         pendingGeolocationOrigin = null;
         pendingPermissionRequest = null;
+        pendingFileChoiceCallback = null;
         if (webView != null) {
             webView.destroy();
             webView = null;
@@ -652,7 +716,7 @@ class ApkBuilder:
     TEMPLATE_APP_NAME = "WebToApp Template"
     TEMPLATE_VERSION_CODE = 1
     TEMPLATE_VERSION_NAME = "1.0"
-    TEMPLATE_REVISION = "2026-06-03-adblock-1"
+    TEMPLATE_REVISION = "2026-08-21-filechooser-1"
     # Keystore used only to sign the throwaway base *template* APK. The template
     # is always re-signed per-app afterwards, so this key never reaches users.
     TEMPLATE_KEY_ALIAS = "webtoapp"
