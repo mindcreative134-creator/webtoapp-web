@@ -30,6 +30,13 @@ from server.logging_util import log_event
 from server.net import fetch_public_url_bytes
 
 
+# Compiled WKWebView helper shipped inside every macos.zip (see
+# macos_template/ for source + build.sh). The Linux build server cannot
+# cross-compile macOS binaries, so the ad-hoc-signed universal binary is
+# committed next to its source and packed verbatim.
+_MACOS_TEMPLATE_DIR = Path(__file__).parent / "macos_template"
+_MACOS_HELPER_NAME = "wta_webview"
+
 # Standalone-window runtime for the macOS .app launcher: a tiny JXA script that
 # opens the target URL in a real WKWebView window using only system frameworks —
 # no bundled binaries, nothing to codesign. Kept as a static string so the
@@ -1490,21 +1497,28 @@ WScript.Echo "桌面快捷方式已创建！"
     def _build_macos(self, dl: Path, r: dict, icon_png, launch_url):
         n = r['name']
         # Launch chain, best experience first:
-        #   1. A real WKWebView window driven by the system osascript (JXA) — a
-        #      genuine standalone app window on every Mac with no third-party
-        #      browser required. The previous Chromium-only probe left Safari-only
-        #      Macs falling through to a plain `open`, i.e. a full-chrome browser
-        #      tab. app.js refuses plain-http targets (ATS blocks them inside
+        #   1. The compiled WKWebView helper (Contents/MacOS/wta_webview) — a
+        #      native window running inside our bundle identity, so the menu
+        #      bar shows the app name and the bundle's ATS exceptions apply.
+        #      A non-zero exit (bad target, missing frameworks on old macOS)
+        #      falls through to the paths below.
+        #   2. A WKWebView window driven by the system osascript (JXA) — works
+        #      with zero dependencies but runs under osascript's identity.
+        #      app.js refuses plain-http targets (ATS blocks them inside
         #      WKWebView) and exits non-zero so the shell falls through.
-        #   2. A Chromium-family browser's "app mode" (--app=URL) — chromeless
-        #      window on the user's own browser engine.
-        #   3. The default browser as a last resort.
+        #   3. A Chromium-family browser's "app mode" (--app=URL).
+        #   4. The default browser as a last resort.
         launcher = f"""#!/bin/bash
 DIR="$(cd "$(dirname "$0")" && pwd)"
 RES="$DIR/../Resources"
 export WTA_URL={shlex.quote(launch_url)}
 export WTA_NAME={shlex.quote(n)}
 export WTA_ICON="$RES/AppIcon.icns"
+HELPER="$DIR/{_MACOS_HELPER_NAME}"
+if [ -x "$HELPER" ]; then
+    "$HELPER"
+    [ $? -eq 0 ] && exit 0
+fi
 if /usr/bin/osascript -l JavaScript "$RES/app.js"; then
     exit 0
 fi
@@ -1536,11 +1550,17 @@ open "$WTA_URL"
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
+<key>NSAppTransportSecurity</key><dict><key>NSAllowsArbitraryLoads</key><true/></dict>
 </dict></plist>"""
+        helper_path = _MACOS_TEMPLATE_DIR / _MACOS_HELPER_NAME
         with zipfile.ZipFile(dl / "macos.zip", 'w', zipfile.ZIP_DEFLATED) as z:
             info = zipfile.ZipInfo(f"{n}.app/Contents/MacOS/launcher")
             info.external_attr = 0o755 << 16
             z.writestr(info, launcher)
+            if helper_path.exists():
+                helper_info = zipfile.ZipInfo(f"{n}.app/Contents/MacOS/{_MACOS_HELPER_NAME}")
+                helper_info.external_attr = 0o755 << 16
+                z.writestr(helper_info, helper_path.read_bytes())
             z.writestr(f"{n}.app/Contents/Resources/app.js", _MACOS_WEBVIEW_APP_JS)
             z.writestr(f"{n}.app/Contents/Info.plist", plist)
             if icon_png:

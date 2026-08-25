@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from server.engine.distiller import Distiller
+from server.engine.distiller import Distiller, _MACOS_HELPER_NAME, _MACOS_TEMPLATE_DIR
 
 
 class DistillerIconCandidateTests(unittest.TestCase):
@@ -76,7 +76,6 @@ class DistillerWriteAppFilesTests(unittest.TestCase):
 
 class DistillerMacosLauncherTests(unittest.TestCase):
     def _build(self, name="My App", url="https://example.com"):
-        import shlex
         import tempfile
         import zipfile
         from pathlib import Path
@@ -89,26 +88,30 @@ class DistillerMacosLauncherTests(unittest.TestCase):
             modes = {}
             with zipfile.ZipFile(Path(tmp) / "macos.zip") as z:
                 for info in z.infolist():
-                    entries[info.filename] = z.read(info.filename).decode()
+                    entries[info.filename] = z.read(info.filename)
                     modes[info.filename] = (info.external_attr >> 16) & 0o7777
         return entries, modes
+
+    def _launcher(self, entries, name="My App"):
+        return entries[f"{name}.app/Contents/MacOS/launcher"].decode()
 
     def test_launcher_tries_webview_then_browser_fallbacks(self):
         import shlex
 
         entries, modes = self._build(url="https://example.com/x")
-        launcher = entries["My App.app/Contents/MacOS/launcher"]
+        launcher = self._launcher(entries)
         self.assertTrue(launcher.startswith("#!/bin/bash"))
-        # Preferred path: system WKWebView window via osascript.
+        # Preferred path: native WKWebView helper inside our bundle identity,
+        # then the JXA/osascript window, then Chromium app mode, then browser.
+        self.assertIn("wta_webview", launcher)
         self.assertIn("/usr/bin/osascript -l JavaScript", launcher)
         self.assertIn(f"export WTA_URL={shlex.quote('https://example.com/x')}", launcher)
-        # Fallbacks: Chromium app mode, then the default browser.
-        self.assertIn("open -na", launcher)
+        self.assertLess(launcher.index("wta_webview"), launcher.index("osascript"))
         self.assertLess(launcher.index("osascript"), launcher.index("open -na"))
         self.assertIn('open "$WTA_URL"', launcher)
         self.assertGreater(launcher.index('open "$WTA_URL"'), launcher.index("open -na"))
-        # The WebView runtime ships inside the bundle and drives a real window.
-        app_js = entries["My App.app/Contents/Resources/app.js"]
+        # The JXA fallback runtime ships inside the bundle and drives a real window.
+        app_js = entries["My App.app/Contents/Resources/app.js"].decode()
         self.assertIn("WKWebView", app_js)
         self.assertIn("windowWillClose:", app_js)
         self.assertIn("WTA_URL", app_js)
@@ -121,13 +124,34 @@ class DistillerMacosLauncherTests(unittest.TestCase):
         tricky_name = "Bob's \"App\""
         tricky_url = "https://example.com/?q=it's&a=$b"
         entries, _ = self._build(name=tricky_name, url=tricky_url)
-        launcher = entries[f"{tricky_name}.app/Contents/MacOS/launcher"]
+        launcher = self._launcher(entries, name=tricky_name)
         self.assertIn(f"export WTA_URL={shlex.quote(tricky_url)}", launcher)
         self.assertIn(f"export WTA_NAME={shlex.quote(tricky_name)}", launcher)
 
     def test_webview_runtime_rejects_http_targets(self):
         entries, _ = self._build(url="http://example.com")
-        app_js = entries["My App.app/Contents/Resources/app.js"]
+        app_js = entries["My App.app/Contents/Resources/app.js"].decode()
         # ATS blocks plain http inside WKWebView; app.js must bail out (non-zero
         # exit) so the shell launcher falls through to browser app mode.
         self.assertIn("requires an https target", app_js)
+
+    def test_bundle_declares_ats_exception(self):
+        entries, _ = self._build(url="http://example.com")
+        plist = entries["My App.app/Contents/Info.plist"].decode()
+        # http targets open in the standalone window thanks to the bundle-level
+        # ATS exception (the compiled helper runs under our bundle identity).
+        self.assertIn("NSAppTransportSecurity", plist)
+        self.assertIn("NSAllowsArbitraryLoads", plist)
+
+    @unittest.skipUnless(
+        (_MACOS_TEMPLATE_DIR / _MACOS_HELPER_NAME).exists(),
+        "prebuilt macOS helper not present on this platform",
+    )
+    def test_helper_binary_is_packed_executable(self):
+        entries, modes = self._build()
+        key = f"My App.app/Contents/MacOS/{_MACOS_HELPER_NAME}"
+        blob = entries[key]
+        self.assertEqual(modes[key], 0o755)
+        # Universal binaries start with the fat-binary magic 0xCAFEBABE.
+        self.assertEqual(blob[:4], b"\xca\xfe\xba\xbe")
+        self.assertGreater(len(blob), 4096)

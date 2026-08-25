@@ -59,7 +59,7 @@ Measured on a real build (figures are representative; they barely vary by site):
 | --- | --- | --- | --- |
 | Android | `android.apk` | **~21 KB** | A real, installable WebView APK (v1+v2+v3 signed) |
 | iOS / iPadOS | `ios.mobileconfig` | **~4 KB** | A Web Clip configuration profile |
-| macOS | `macos.zip` | **~1.4 KB** | A `.app` bundle (standalone WKWebView window launcher + icon) |
+| macOS | `macos.zip` | **~135 KB** | A `.app` bundle (native WKWebView window + icon) |
 | Windows | `windows.zip` | **~1.2 KB** | A `.bat` launcher + desktop-shortcut helper + icon |
 | Linux | `linux.tar.gz` | **~0.7 KB** | A `.desktop` entry + install script + icon |
 
