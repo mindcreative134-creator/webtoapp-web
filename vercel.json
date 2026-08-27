@@ -6,7 +6,11 @@
       "use": "@vercel/python"
     },
     {
-      "src": "index.html",
+      "src": "*.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "ads.txt",
       "use": "@vercel/static"
     },
     {
@@ -23,6 +27,10 @@
     }
   ],
   "routes": [
+    {
+      "src": "/ads.txt",
+      "dest": "/ads.txt"
+    },
     {
       "src": "/api/(.*)",
       "dest": "api/index.py"
