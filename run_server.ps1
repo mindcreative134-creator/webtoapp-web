@@ -333,7 +333,7 @@ while ($listener.IsListening) {
         }
 
         # ── App Details / Result Page: /a/<id> ──
-        if ($path -match "^/a/([a-f0-9]{8})$") {
+        if ($path -match "^/a/([a-zA-Z0-9_-]+)$") {
             $appId = $matches[1]
             $appRecord = $AppDb[$appId]
             if (-not $appRecord) {
@@ -393,7 +393,7 @@ while ($listener.IsListening) {
         }
 
         # ── Direct Download Handlers: /a/<id>/download/<platform> ──
-        if ($path -match "^/a/([a-f0-9]{8})/download/(android|ios|windows|macos|linux)$") {
+        if ($path -match "^/a/([a-zA-Z0-9_-]+)/download/(android|ios|windows|macos|linux)$") {
             $appId = $matches[1]
             $platform = $matches[2]
             $appRecord = $AppDb[$appId]
@@ -405,15 +405,19 @@ while ($listener.IsListening) {
             if ($platform -eq "android") {
                 $templatePath = Join-Path $HostDir "template.apk"
                 if (-not (Test-Path $templatePath)) {
+                    $templatePath = Join-Path $HostDir "assets\template.apk"
+                }
+                if (-not (Test-Path $templatePath)) {
                     $templatePath = Join-Path (Split-Path $HostDir -Parent) "app\build\outputs\apk\debug\app-debug.apk"
                 }
 
                 if (Test-Path $templatePath) {
-                    $apkBytes = [System.IO.File]::ReadAllBytes($templatePath)
+                    $bytes = [System.IO.File]::ReadAllBytes($templatePath)
                     $response.ContentType = "application/vnd.android.package-archive"
                     $response.AddHeader("Content-Disposition", "attachment; filename=`"$safeName.apk`"")
-                    $response.ContentLength64 = $apkBytes.Length
-                    $response.OutputStream.Write($apkBytes, 0, $apkBytes.Length)
+                    $response.ContentLength64 = $bytes.Length
+                    $response.OutputStream.Write($bytes, 0, $bytes.Length)
+                    $response.OutputStream.Flush()
                     $response.OutputStream.Close()
                     continue
                 }
