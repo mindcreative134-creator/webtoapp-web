@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How It Works — WebToApp Studio Pro</title>
+  <meta name="description" content="Step-by-step guide on how WebToApp distills web pages, injects native containers, and packages Android APKs and iOS WebClips.">
+  <link rel="icon" href="assets/site-logo.png">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=20260828-pro3">
+  <style>
+    .page-hero { padding: 160px 0 60px; text-align: center; }
+    .timeline { max-width: 800px; margin: 40px auto 80px; display: flex; flex-direction: column; gap: 32px; }
+    .timeline-card { display: flex; gap: 24px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 36px 32px; }
+    .timeline-num { font-size: 2rem; font-weight: 800; color: var(--accent-cyan); font-family: var(--font-mono); }
+    .timeline-content h2 { font-size: 1.3rem; margin-bottom: 8px; }
+    .timeline-content p { color: var(--text-muted); line-height: 1.7; font-size: 0.95rem; }
+    @media (max-width: 700px) { .timeline-card { flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <div class="glow-sphere sphere-1"></div>
+  <div class="glow-sphere sphere-2"></div>
+
+  <!-- Header -->
+  <header id="nav">
+    <a class="logo" href="index.html">
+      <img src="assets/site-logo.png" alt="WebToApp Logo" class="app-logo-img">
+      <div class="logo-text">
+        <span class="logo-title">WebToApp</span>
+        <span class="logo-badge">STUDIO PRO</span>
+      </div>
+    </a>
+    <nav class="nav-links">
+      <a href="index.html" class="nav-link">Studio</a>
+      <a href="features.html" class="nav-link">Features</a>
+      <a href="how-it-works.html" class="nav-link active">How It Works</a>
+      <a href="pricing.html" class="nav-link">Pro Tier</a>
+    </nav>
+    <div class="nav-actions">
+      <a href="index.html" class="btn-nav-primary">Build App Now 🚀</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="section-container">
+        <span class="section-kicker">STEP-BY-STEP PROCESS</span>
+        <h1 class="section-title">How WebToApp Works</h1>
+        <p class="section-subtitle">A seamless 4-step pipeline that transforms any website into installable client binaries.</p>
+      </div>
+    </section>
+
+    <div class="section-container">
+      <div class="timeline">
+        <div class="timeline-card">
+          <div class="timeline-num">01</div>
+          <div class="timeline-content">
+            <h2>Instant Metadata & Favicon Distillation</h2>
+            <p>You provide your website URL or HTML archive. Our automated serverless engine crawls the page, analyzes the OpenGraph metadata, extracts the highest-resolution favicons, and suggests optimized application branding.</p>
+          </div>
+        </div>
+
+        <div class="timeline-card">
+          <div class="timeline-num">02</div>
+          <div class="timeline-content">
+            <h2>Configuration & Container Hardening</h2>
+            <p>Customize theme colors, custom launcher icons, and feature switches (Immersive Fullscreen, Desktop User Agent, and Package Names). Our engine configures network security configs to shield ads and popups.</p>
+          </div>
+        </div>
+
+        <div class="timeline-card">
+          <div class="timeline-num">03</div>
+          <div class="timeline-content">
+            <h2>Native Binary Compilation & Signing</h2>
+            <p>For Android, our system bundles the configuration inside the pre-built 72 MB native WebView APK shell. For iOS, a verified Apple WebClip mobile configuration is generated. Windows and Linux desktop launchers are dynamically rendered.</p>
+          </div>
+        </div>
+
+        <div class="timeline-card">
+          <div class="timeline-num">04</div>
+          <div class="timeline-content">
+            <h2>Instant Multi-Platform Distribution</h2>
+            <p>Your unique app landing page (<code>/a/{id}</code>) is instantly provisioned. Download your APK directly to your phone, share the install link with users, or open it in any desktop browser.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-container">
+      <div class="footer-bottom text-center">
+        <p>© 2026 WebToApp Studio Pro. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -3,20 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebToApp — Turn Any Website Into a Powerful Multi-Platform App</title>
-  <meta name="description" content="Convert any website URL or HTML file into native Android APK, iOS WebClip, Windows, macOS, and Linux apps instantly with built-in AdBlock and offline support.">
+  <title>WebToApp Studio Pro — Turn Any Website Into a Multi-Platform App</title>
+  <meta name="description" content="Convert any website URL or HTML package into standalone Android APK (72 MB), iOS WebClip, Windows, macOS, and Linux apps instantly with built-in AdBlock.">
   <meta name="keywords" content="web to app, URL to APK, website to app converter, PWA builder, Android APK generator, iOS WebClip, open source app maker">
-  <meta property="og:title" content="WebToApp — Turn Websites Into Apps">
+  <meta property="og:title" content="WebToApp Studio Pro — Turn Websites Into Native Apps">
   <meta property="og:description" content="Enter a link. Seconds later install, share, and use it as a true standalone app across 5 platforms.">
   <meta property="og:type" content="website">
   <meta name="theme-color" content="#7c3aed">
-  <link rel="icon" href="assets/site-logo.jpg">
+  <link rel="icon" href="assets/site-logo.png">
+  <link rel="apple-touch-icon" href="assets/site-logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260828-pro1">
-  <script src="js/i18n.js?v=20260828-pro1"></script>
-  <script src="js/i18n.strings.js?v=20260828-pro1"></script>
+  <link rel="stylesheet" href="css/style.css?v=20260828-pro3">
+  <!-- Google One-Tap / Identity Services API -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
   <div class="glow-sphere sphere-1"></div>
@@ -25,8 +26,8 @@
 
   <!-- ── Top Navigation Bar ── -->
   <header id="nav">
-    <a class="logo" href="/">
-      <div class="logo-icon">🚀</div>
+    <a class="logo" href="index.html">
+      <img src="assets/site-logo.png" alt="WebToApp Logo" class="app-logo-img">
       <div class="logo-text">
         <span class="logo-title">WebToApp</span>
         <span class="logo-badge">STUDIO PRO</span>
@@ -34,26 +35,32 @@
     </a>
 
     <nav class="nav-links">
-      <a href="#how-it-works" class="nav-link">How It Works</a>
-      <a href="#features" class="nav-link">Features</a>
-      <a href="#pricing" class="nav-link">Pro Tier</a>
+      <a href="index.html" class="nav-link active">Studio</a>
+      <a href="features.html" class="nav-link">Features</a>
+      <a href="how-it-works.html" class="nav-link">How It Works</a>
+      <a href="pricing.html" class="nav-link">Pro Tier</a>
       <a href="#history-section" class="nav-link">My Builds</a>
       <a href="#faq" class="nav-link">FAQ</a>
     </nav>
 
     <div class="nav-actions">
       <div class="lang-switcher">
-        <label id="lang-label" class="sr-only" for="lang-select">Language</label>
-        <select id="lang-select" aria-labelledby="lang-label"></select>
+        <select id="lang-select" aria-label="Language Selector">
+          <option value="en">🇺🇸 English</option>
+          <option value="hi">🇮🇳 हिन्दी</option>
+          <option value="zh">🇨🇳 中文</option>
+          <option value="es">🇪🇸 Español</option>
+          <option value="ru">🇷🇺 Русский</option>
+        </select>
       </div>
 
-      <!-- Auth Guest State -->
+      <!-- Guest State -->
       <div id="nav-auth-guest" class="nav-auth-group">
         <button id="nav-login-btn" class="btn-nav-secondary" type="button">Sign In</button>
-        <button id="nav-signup-btn" class="btn-nav-primary" type="button">Get Started</button>
+        <button id="nav-signup-btn" class="btn-nav-primary" type="button">Get Started Free</button>
       </div>
 
-      <!-- Auth User State (Logged in) -->
+      <!-- User State (Logged In) -->
       <div id="nav-auth-user" class="nav-user-dropdown-wrap hidden">
         <button id="user-menu-btn" class="user-avatar-btn" type="button" aria-expanded="false">
           <div id="user-avatar-initials" class="avatar-circle">U</div>
@@ -67,17 +74,17 @@
         <div id="user-dropdown-menu" class="user-dropdown hidden">
           <div class="dropdown-header">
             <p id="dropdown-user-email" class="dropdown-email">user@example.com</p>
-            <span class="dropdown-status">🟢 Cloud Connected</span>
+            <span class="dropdown-status">🟢 Cloud Sync Connected</span>
           </div>
           <div class="dropdown-divider"></div>
           <a href="#history-section" class="dropdown-item">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
             <span>My Projects & Builds</span>
           </a>
-          <button id="dropdown-manage-plan-btn" class="dropdown-item" type="button">
+          <a href="pricing.html" class="dropdown-item">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
             <span>Upgrade to Pro</span>
-          </button>
+          </a>
           <div class="dropdown-divider"></div>
           <button id="nav-logout-btn" class="dropdown-item text-danger" type="button">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -96,22 +103,22 @@
     <!-- ===== HERO SECTION ===== -->
     <section id="hero">
       <div class="hero-container">
-        <div class="hero-announcement" data-reveal>
-          <span class="announcement-spark">⚡ NEW</span>
-          <span>Full Native Android APK & iOS WebClip Engine v3.0 Live</span>
+        <div class="hero-announcement">
+          <span class="announcement-spark">⚡ NEW v3.0</span>
+          <span>Native Android 72 MB Shell + iOS WebClip Engine Live</span>
         </div>
 
-        <h1 class="hero-headline" data-reveal>
+        <h1 class="hero-headline">
           Turn any website into a <br>
           <span class="gradient-text">production-ready app</span>.
         </h1>
 
-        <p class="hero-description" data-reveal>
+        <p class="hero-description">
           Enter your link. WebToApp analyzes site metadata, injects hardware acceleration, bundles ad-blocking shields, and delivers standalone installable packages for 5 platforms in seconds.
         </p>
 
         <!-- Source Mode Switcher -->
-        <div class="source-mode-wrap" data-reveal>
+        <div class="source-mode-wrap">
           <div class="source-mode" role="group" aria-label="Source type">
             <button id="mode-url-btn" class="mode-btn active" type="button">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
@@ -119,13 +126,13 @@
             </button>
             <button id="mode-html-btn" class="mode-btn" type="button">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-              <span>HTML / ZIP File</span>
+              <span>HTML / ZIP Archive</span>
             </button>
           </div>
         </div>
 
-        <!-- URL Input Bar -->
-        <div class="hero-input-shell" data-reveal>
+        <!-- URL Input Shell -->
+        <div class="hero-input-shell">
           <div class="url-input-wrap" id="url-input-wrap">
             <div class="input-prefix-icon">🌐</div>
             <input id="url-input" type="url" placeholder="Paste your website URL (e.g. https://filmy4uhd.vercel.app)" autocomplete="off" spellcheck="false">
@@ -146,7 +153,7 @@
         </div>
 
         <!-- Supported Platform Chips -->
-        <div class="platform-chips-row" data-reveal>
+        <div class="platform-chips-row">
           <span class="chip-item">📱 Android APK (72 MB Full Shell)</span>
           <span class="chip-item">🍏 iOS WebClip Profile</span>
           <span class="chip-item">🪟 Windows Desktop (.bat)</span>
@@ -154,14 +161,14 @@
           <span class="chip-item">🐧 Linux Launcher</span>
         </div>
 
-        <!-- Metric Counter Grid -->
-        <div class="stats-counter-grid" data-reveal>
+        <!-- Real Stats Counter Grid -->
+        <div class="stats-counter-grid">
           <div class="stat-card">
             <div class="stat-num" id="stat-generated-apps">14,280+</div>
             <div class="stat-lbl">Apps Generated</div>
           </div>
           <div class="stat-card">
-            <div class="stat-num" id="stat-supported-platforms">5 Platforms</div>
+            <div class="stat-num">5 Platforms</div>
             <div class="stat-lbl">Native Packaging</div>
           </div>
           <div class="stat-card">
@@ -323,7 +330,7 @@
             </button>
           </div>
 
-          <!-- Download Action Grid -->
+          <!-- Download Platform Cards Grid -->
           <div class="download-platform-grid">
             <a id="dl-android" href="#" class="platform-dl-card primary-card">
               <div class="dl-icon">📱</div>
@@ -588,7 +595,7 @@
       <div class="footer-top-grid">
         <div class="footer-col-main">
           <div class="logo">
-            <span class="logo-icon">🚀</span>
+            <img src="assets/site-logo.png" alt="WebToApp Logo" class="app-logo-img">
             <span class="logo-title">WebToApp</span>
             <span class="logo-badge">STUDIO PRO</span>
           </div>
@@ -601,10 +608,10 @@
 
         <div class="footer-col">
           <h4>Product</h4>
-          <a href="#hero">App Studio</a>
-          <a href="#how-it-works">How It Works</a>
-          <a href="#features">Feature Suite</a>
-          <a href="#pricing">Pro Plans</a>
+          <a href="index.html">App Studio</a>
+          <a href="features.html">Feature Suite</a>
+          <a href="how-it-works.html">How It Works</a>
+          <a href="pricing.html">Pro Plans</a>
           <a href="#history-section">Build History</a>
         </div>
 
@@ -631,20 +638,34 @@
   </footer>
 
   <!-- ======================================================== -->
-  <!-- 🔐 AUTHENTICATION MODAL (Sign In / Register Popup)      -->
+  <!-- 🔐 AUTHENTICATION MODAL (Sign In / Register / Google)   -->
   <!-- ======================================================== -->
   <div id="auth-modal" class="modal-overlay hidden" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="modal-card">
       <button id="auth-close-btn" class="modal-close-btn" type="button" aria-label="Close modal">✕</button>
 
       <div class="modal-header text-center">
-        <div class="modal-logo">🚀</div>
+        <img src="assets/site-logo.png" alt="WebToApp Logo" class="modal-logo-img">
         <h2 id="auth-modal-title">Welcome to WebToApp</h2>
         <p id="auth-modal-subtitle" class="modal-sub">Sign in or create an account to generate, save, and export your apps.</p>
       </div>
 
       <!-- Auth Error / Success Alert -->
       <div id="auth-alert" class="auth-alert hidden"></div>
+
+      <!-- 🔵 Google One-Click Sign-In Button (Like App) -->
+      <div class="google-auth-box">
+        <button id="google-auth-btn" class="btn-google-sign-in" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.03 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.93 6.72-4.93z"/>
+          </svg>
+          <span>Continue with Google</span>
+        </button>
+        <div class="or-divider"><span>OR CONTINUE WITH EMAIL</span></div>
+      </div>
 
       <!-- Tabs Switcher -->
       <div class="auth-tab-bar">
@@ -662,7 +683,7 @@
         <label class="field">
           <div class="field-label-row">
             <span class="field-label">Password</span>
-            <a href="#" id="auth-forgot-link" class="link-small">Forgot?</a>
+            <a href="#" id="auth-forgot-link" class="link-small">Forgot Password?</a>
           </div>
           <input id="login-password" type="password" placeholder="••••••••" required autocomplete="current-password">
         </label>
@@ -696,7 +717,6 @@
 
       <!-- Quick Guest Option -->
       <div class="modal-footer text-center">
-        <div class="or-divider"><span>OR</span></div>
         <button id="auth-guest-bypass-btn" class="btn-guest-continue" type="button">
           ⚡ Continue as Guest (Quick Demo)
         </button>
@@ -704,6 +724,6 @@
     </div>
   </div>
 
-  <script src="js/app.v5.js?v=20260828-pro1"></script>
+  <script src="js/app.v5.js?v=20260828-pro3"></script>
 </body>
 </html>

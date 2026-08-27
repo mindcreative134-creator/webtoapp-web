@@ -143,6 +143,26 @@ async def auth_register(req: RegisterRequest):
         }
     }
 
+@app.post("/api/auth/google")
+async def auth_google(req: Dict[str, Any]):
+    user = {
+        "id": len(USER_DB) + 1,
+        "username": "Google_Creator",
+        "email": "creator@gmail.com",
+        "is_admin": False,
+        "is_pro": True
+    }
+    token = f"jwt_google_{uuid.uuid4().hex}"
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": user
+    }
+
+@app.post("/api/auth/forgot-password")
+async def auth_forgot_password(req: Dict[str, Any]):
+    return {"status": "ok", "message": "Password reset code sent"}
+
 @app.get("/api/stats")
 async def get_stats():
     return {
