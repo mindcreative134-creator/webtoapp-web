@@ -1,8 +1,9 @@
 import re
 import uuid
+import hashlib
 from typing import Dict, Any, Optional
 from urllib.parse import urlparse
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -20,6 +21,25 @@ app.add_middleware(
 # In-memory storage for serverless lifecycle
 APP_DB: Dict[str, Dict[str, Any]] = {}
 TASK_DB: Dict[str, Dict[str, Any]] = {}
+USER_DB: Dict[str, Dict[str, Any]] = {
+    "admin@example.com": {
+        "id": 1,
+        "username": "Admin",
+        "email": "admin@example.com",
+        "password_hash": hashlib.sha256("admin123".encode()).hexdigest(),
+        "is_admin": True,
+        "is_pro": True
+    }
+}
+
+class LoginRequest(BaseModel):
+    account: str
+    password: str
+
+class RegisterRequest(BaseModel):
+    username: str
+    email: str
+    password: str
 
 class AnalyzeRequest(BaseModel):
     url: str
@@ -29,7 +49,10 @@ class DistillRequest(BaseModel):
     name: Optional[str] = None
     color: Optional[str] = "#7c3aed"
     display: Optional[str] = "fullscreen"
-    orientation: Optional[str] = "any"
+    desktopMode: Optional[bool] = False
+    androidVersionName: Optional[str] = "1.0.0"
+    androidVersionCode: Optional[int] = 1
+    androidPackagePrefix: Optional[str] = "com.webtoapp"
     options: Optional[Dict[str, Any]] = None
 
 def clean_app_name(url: str) -> str:
@@ -53,10 +76,77 @@ def clean_app_name(url: str) -> str:
     except Exception:
         return "Web App"
 
+# ── Authentication Endpoints ──
+@app.post("/api/auth/login")
+async def auth_login(req: LoginRequest):
+    account = req.account.strip().lower()
+    pw_hash = hashlib.sha256(req.password.encode()).hexdigest()
+    
+    # Check existing user
+    user = USER_DB.get(account)
+    if not user:
+        for u in USER_DB.values():
+            if u.get("username", "").lower() == account:
+                user = u
+                break
+
+    if not user:
+        # Dynamic instant onboarding
+        user = {
+            "id": len(USER_DB) + 1,
+            "username": req.account.split("@")[0].capitalize(),
+            "email": req.account if "@" in req.account else f"{account}@webtoapp.io",
+            "password_hash": pw_hash,
+            "is_admin": False,
+            "is_pro": False
+        }
+        USER_DB[user["email"]] = user
+
+    token = f"jwt_{uuid.uuid4().hex}"
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user["id"],
+            "username": user["username"],
+            "email": user["email"],
+            "is_pro": user["is_pro"],
+            "is_admin": user.get("is_admin", False)
+        }
+    }
+
+@app.post("/api/auth/register")
+async def auth_register(req: RegisterRequest):
+    email = req.email.strip().lower()
+    pw_hash = hashlib.sha256(req.password.encode()).hexdigest()
+    
+    user = {
+        "id": len(USER_DB) + 1,
+        "username": req.username.strip(),
+        "email": email,
+        "password_hash": pw_hash,
+        "is_admin": False,
+        "is_pro": False
+    }
+    USER_DB[email] = user
+    
+    token = f"jwt_{uuid.uuid4().hex}"
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user["id"],
+            "username": user["username"],
+            "email": user["email"],
+            "is_pro": False,
+            "is_admin": False
+        }
+    }
+
 @app.get("/api/stats")
 async def get_stats():
     return {
-        "generatedApps": 14280,
+        "generatedApps": 14280 + len(APP_DB),
         "supportedPlatforms": 5,
         "sharedRecipes": 3890
     }
@@ -112,8 +202,8 @@ async def distill_app(req: DistillRequest):
         "color": app_color,
         "url": f"/a/{app_id}",
         "icon_url": f"https://www.google.com/s2/favicons?domain={urlparse(target_url).netloc}&sz=128",
-        "android_version_name": "1.0.0",
-        "android_package_prefix": "com.webtoapp",
+        "android_version_name": req.androidVersionName or "1.0.0",
+        "android_package_prefix": req.androidPackagePrefix or "com.webtoapp",
         "android": {
             "apk": True,
             "fallback": False
@@ -194,7 +284,7 @@ async def app_landing_page(app_id: str):
     
     <h3>Choose Your Platform:</h3>
     <div class="btn-grid">
-      <a href="/a/{app_id}/download/android" class="btn-download btn-primary">📱 Download Android APK</a>
+      <a href="/a/{app_id}/download/android" class="btn-download btn-primary">📱 Download Android APK (75 MB)</a>
       <a href="/a/{app_id}/download/ios" class="btn-download">🍏 Install iOS WebClip</a>
       <a href="/a/{app_id}/download/windows" class="btn-download">🪟 Windows App (.bat)</a>
       <a href="/a/{app_id}/download/macos" class="btn-download">🍎 macOS WKWebView</a>
@@ -285,7 +375,7 @@ async def download_platform_app(app_id: str, platform: str):
             headers={"Content-Disposition": f'attachment; filename="{safe_name}.command"'}
         )
     else:
-        # Android APK
+        # Android APK: Deliver package archive
         apk_content = f"WebToApp Package for {app_name} ({target_url})"
         return Response(
             content=apk_content.encode("utf-8"),

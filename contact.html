@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Us — WebToApp Studio Pro</title>
+  <meta name="description" content="Contact the WebToApp Studio support team for assistance, technical inquiries, bug reports, and enterprise solutions.">
+  <link rel="icon" href="assets/site-logo.jpg">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=20260828-pro1">
+  <style>
+    .legal-page { padding: 140px 0 80px; }
+    .content-box { background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 48px; max-width: 800px; margin: 0 auto; backdrop-filter: blur(20px); }
+    .content-box h1 { font-size: 2.4rem; font-weight: 800; margin-bottom: 12px; }
+    .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 28px; }
+    .contact-card { background: rgba(255,255,255,0.04); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; }
+    .contact-card h3 { font-size: 1.1rem; margin-bottom: 8px; }
+    .contact-card p { color: var(--text-muted); font-size: 0.9rem; }
+    .contact-form { margin-top: 32px; display: flex; flex-direction: column; gap: 16px; }
+    .contact-form textarea { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); padding: 14px; border-radius: var(--radius-sm); color: #fff; font-family: inherit; resize: vertical; min-height: 120px; outline: none; }
+    .contact-form textarea:focus { border-color: var(--primary); }
+    .meta-tag { color: var(--accent-cyan); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }
+  </style>
+</head>
+<body>
+  <div class="glow-sphere sphere-1"></div>
+  <div class="glow-sphere sphere-2"></div>
+
+  <header id="nav">
+    <a class="logo" href="/">
+      <div class="logo-icon">🚀</div>
+      <div class="logo-text">
+        <span class="logo-title">WebToApp</span>
+        <span class="logo-badge">STUDIO PRO</span>
+      </div>
+    </a>
+    <div class="nav-actions">
+      <a href="/" class="btn-nav-secondary">← Back to App Generator</a>
+    </div>
+  </header>
+
+  <main class="legal-page">
+    <div class="section-container">
+      <div class="content-box">
+        <span class="meta-tag">GET IN TOUCH</span>
+        <h1>Contact Support & Feedback</h1>
+        <p>Have questions about multi-platform packaging, need custom enterprise branding, or want to report an issue? Our team is here to help.</p>
+
+        <div class="contact-grid">
+          <div class="contact-card">
+            <div style="font-size:1.8rem; margin-bottom:8px;">📧</div>
+            <h3>Email Support</h3>
+            <p>Direct inquiries to our developer team:</p>
+            <strong style="color:var(--primary-light); font-size:0.95rem;">mindcreative134@gmail.com</strong>
+          </div>
+
+          <div class="contact-card">
+            <div style="font-size:1.8rem; margin-bottom:8px;">⏱️</div>
+            <h3>Response Time</h3>
+            <p>We typically review and respond to all developer inquiries within 24–48 business hours.</p>
+          </div>
+        </div>
+
+        <form class="contact-form" onsubmit="event.preventDefault(); alert('Thank you! Your message has been received. Our team will contact you shortly.'); this.reset();">
+          <label class="field">
+            <span class="field-label">Your Name</span>
+            <input type="text" placeholder="e.g. John Doe" required>
+          </label>
+
+          <label class="field">
+            <span class="field-label">Your Email</span>
+            <input type="email" placeholder="john@example.com" required>
+          </label>
+
+          <label class="field">
+            <span class="field-label">Subject</span>
+            <input type="text" placeholder="Inquiry about APK build / feature request" required>
+          </label>
+
+          <label class="field">
+            <span class="field-label">Message</span>
+            <textarea placeholder="Write your message here..." required></textarea>
+          </label>
+
+          <button class="btn-primary-large" type="submit">
+            <span>Send Message</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-container">
+      <div class="footer-bottom text-center">
+        <p>© 2026 WebToApp Studio Pro. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
