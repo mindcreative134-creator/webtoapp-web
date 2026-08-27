@@ -55,6 +55,20 @@ function Get-CleanAppName($url) {
     }
 }
 
+function Get-RequestBody($req) {
+    try {
+        if ($req.HasEntityBody) {
+            $ms = New-Object System.IO.MemoryStream
+            $req.InputStream.CopyTo($ms)
+            $bytes = $ms.ToArray()
+            if ($bytes.Length -gt 0) {
+                return [System.Text.Encoding]::UTF8.GetString($bytes)
+            }
+        }
+    } catch {}
+    return "{}"
+}
+
 while ($listener.IsListening) {
     try {
         $context = $listener.GetContext()
@@ -71,6 +85,90 @@ while ($listener.IsListening) {
 
         if ($method -eq "OPTIONS") {
             $response.StatusCode = 200
+            $response.OutputStream.Close()
+            continue
+        }
+
+        # ── API: Auth Login ──
+        if ($path -eq "/api/auth/login" -and $method -eq "POST") {
+            $body = Get-RequestBody $request
+            $bodyJson = ConvertFrom-Json $body -ErrorAction SilentlyContinue
+            $account = "Creator"
+            if ($bodyJson -and $bodyJson.account) { $account = $bodyJson.account }
+            
+            $uname = $account.Split("@")[0]
+            $email = if ($account -match "@") { $account } else { "$account@webtoapp.io" }
+            
+            $respObj = @{
+                access_token = "tok_" + [System.Guid]::NewGuid().ToString("N")
+                token_type = "bearer"
+                user = @{
+                    id = 1
+                    username = $uname
+                    email = $email
+                    is_pro = $true
+                    is_admin = $false
+                }
+            }
+            $json = ConvertTo-Json $respObj -Depth 4
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $bytes.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            $response.OutputStream.Close()
+            continue
+        }
+
+        # ── API: Auth Register ──
+        if ($path -eq "/api/auth/register" -and $method -eq "POST") {
+            $body = Get-RequestBody $request
+            $bodyJson = ConvertFrom-Json $body -ErrorAction SilentlyContinue
+            $username = "NewCreator"
+            $email = "user@webtoapp.io"
+            if ($bodyJson -and $bodyJson.username) { $username = $bodyJson.username }
+            if ($bodyJson -and $bodyJson.email) { $email = $bodyJson.email }
+            
+            $respObj = @{
+                access_token = "tok_" + [System.Guid]::NewGuid().ToString("N")
+                token_type = "bearer"
+                user = @{
+                    id = 2
+                    username = $username
+                    email = $email
+                    is_pro = $false
+                    is_admin = $false
+                }
+            }
+            $json = ConvertTo-Json $respObj -Depth 4
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $bytes.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            $response.OutputStream.Close()
+            continue
+        }
+
+        # ── API: Auth Google ──
+        if ($path -eq "/api/auth/google" -and $method -eq "POST") {
+            $respObj = @{
+                access_token = "google_jwt_" + [System.Guid]::NewGuid().ToString("N")
+                token_type = "bearer"
+                user = @{
+                    id = 3
+                    username = "Google_Creator"
+                    email = "creator@gmail.com"
+                    is_pro = $true
+                    is_admin = $false
+                }
+            }
+            $json = ConvertTo-Json $respObj -Depth 4
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+            $response.ContentType = "application/json; charset=utf-8"
+            $response.ContentLength64 = $bytes.Length
+            $response.StatusCode = 200
+            $response.OutputStream.Write($bytes, 0, $bytes.Length)
             $response.OutputStream.Close()
             continue
         }
@@ -103,8 +201,7 @@ while ($listener.IsListening) {
 
         # ── API: Analyze URL ──
         if ($path -eq "/api/analyze" -and $method -eq "POST") {
-            $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
-            $body = $reader.ReadToEnd()
+            $body = Get-RequestBody $request
             $bodyJson = ConvertFrom-Json $body -ErrorAction SilentlyContinue
 
             $targetUrl = ""
@@ -149,8 +246,7 @@ while ($listener.IsListening) {
 
         # ── API: Distill Submit (Task creation) ──
         if ($path -eq "/api/distill" -and $method -eq "POST") {
-            $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
-            $body = $reader.ReadToEnd()
+            $body = Get-RequestBody $request
             $bodyJson = ConvertFrom-Json $body -ErrorAction SilentlyContinue
 
             $taskId = (-join ((48..57) + (97..102) | Get-Random -Count 8 | ForEach-Object {[char]$_}))
